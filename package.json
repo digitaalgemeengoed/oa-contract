@@ -1,5 +1,5 @@
 {
-  "name": "@oa/contract",
+  "name": "@digitaalgemeengoed/oa-contract",
   "version": "0.1.0",
   "description": "Het contract van de Office Assistent: inhoud, vermogens, bevindingen, gebeurtenissen en de twee ingangen.",
   "license": "EUPL-1.2",
@@ -12,12 +12,22 @@
       "default": "./dist/index.js"
     }
   },
-  "files": ["dist"],
+  "files": [
+    "dist"
+  ],
   "scripts": {
     "build": "tsc -p tsconfig.json",
     "test": "node --test \"test/*.test.js\""
   },
   "devDependencies": {
     "typescript": "5.9.3"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/digitaalgemeengoed/oa-contract.git"
+  },
+  "homepage": "https://github.com/digitaalgemeengoed/oa-contract#readme",
+  "publishConfig": {
+    "registry": "https://npm.pkg.github.com"
   }
 }
