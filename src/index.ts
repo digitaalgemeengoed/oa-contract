@@ -164,6 +164,10 @@ export interface Informatieobject {
   versies: Versie[];
   aangemaakt: string;
   aangemaaktDoor: string;
+  /** De inhoud is versleuteld met een eigen sleutel per object (OA-ADR-008). */
+  versleuteld?: boolean;
+  /** Tijdstip waarop de sleutel is vernietigd; de inhoud is dan onleesbaar, de registratie blijft. */
+  onleesbaarGemaakt?: string | null;
 }
 
 export type ObjecttypeStatus = "concept" | "actief" | "uitgefaseerd";
@@ -189,6 +193,7 @@ export const GEBEURTENISTYPEN = [
   "binding.vastgelegd",
   "weergave.toegevoegd",
   "versie.gewaarmerkt",
+  "object.onleesbaar-gemaakt",
   "objecttype.gepubliceerd",
   "delegatie.verleend",
   "delegatie.ingetrokken",
@@ -227,6 +232,8 @@ export const LEES = {
   objecttypen: "/api/lees/objecttypen",
   gebeurtenissen: (id: string) => `/api/lees/objecten/${encodeURIComponent(id)}/gebeurtenissen`,
   wieBenIk: "/api/lees/wie-ben-ik",
+  /** Zoeken in de index van de eigen gemeente; elk resultaat is bevestigd in het register. */
+  zoeken: (vraag: Zoekvraag) => `/api/lees/zoeken?${zoekparameters(vraag)}`,
 } as const;
 
 /** Vastleggen: elke aanroep levert een gebeurtenis op. */
@@ -234,7 +241,52 @@ export const VASTLEG = {
   objecten: "/api/vastleg/objecten",
   metadata: (id: string) => `/api/vastleg/objecten/${encodeURIComponent(id)}/metadata`,
   versies: (id: string) => `/api/vastleg/objecten/${encodeURIComponent(id)}/versies`,
+  /** Sleutel vernietigen: alleen voor de rol beheerder, met een reden. */
+  onleesbaar: (id: string) => `/api/vastleg/objecten/${encodeURIComponent(id)}/onleesbaar`,
 } as const;
+
+// ---------------------------------------------------------------------------
+// Zoeken (OA-ADR-007): de index is nooit de bron van waarheid
+// ---------------------------------------------------------------------------
+
+export interface Zoekvraag {
+  tekst: string;
+  informatiecategorie?: string;
+  vertrouwelijkheid?: string;
+  objecttype?: string;
+  /** Aantal resultaten, 1 tot 50. */
+  aantal?: number;
+}
+
+export function zoekparameters(v: Zoekvraag): string {
+  const p = new URLSearchParams({ tekst: v.tekst });
+  if (v.informatiecategorie) p.set("informatiecategorie", v.informatiecategorie);
+  if (v.vertrouwelijkheid) p.set("vertrouwelijkheid", v.vertrouwelijkheid);
+  if (v.objecttype) p.set("objecttype", v.objecttype);
+  if (v.aantal) p.set("aantal", String(v.aantal));
+  return p.toString();
+}
+
+export interface Zoekresultaat {
+  identificatie: string;
+  objecttype: ObjecttypeVerwijzing;
+  /** Metadata uit het register, niet uit de index. */
+  metadata: Record<string, unknown>;
+  versie: number | null;
+  /** Fragmenten uit de index, met <mark> om de treffers. */
+  fragmenten: string[];
+  score: number;
+}
+
+export interface Zoekantwoord {
+  resultaten: Zoekresultaat[];
+  /** Treffers in de index die het register niet bevestigde (verwijderd, onleesbaar, andere gemeente). */
+  nietBevestigd: number;
+}
+
+export interface OnleesbaarMaken {
+  reden: string;
+}
 
 export interface ToegankelijkheidVraag {
   inhoud: Inhoud;
