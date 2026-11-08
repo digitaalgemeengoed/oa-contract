@@ -20,3 +20,9 @@ test("paden coderen de identificatie", () => {
   assert.equal(LEES.object("a/b"), "/api/lees/objecten/a%2Fb");
   assert.equal(VASTLEG.versies("x"), "/api/vastleg/objecten/x/versies");
 });
+
+test("een weergave van een versie heeft een eigen pad", async () => {
+  const { LEES, OPTIONELE_VERMOGENS } = await import("../dist/index.js");
+  assert.equal(LEES.weergave("x", 2, "html"), "/api/lees/objecten/x/versies/2/weergaven/html");
+  assert.ok(OPTIONELE_VERMOGENS.includes("bestand-opleveren"));
+});

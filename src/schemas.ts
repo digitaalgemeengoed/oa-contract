@@ -9,7 +9,7 @@ export const INHOUD_SCHEMA = {
   required: ["formaat", "mediaType", "codering", "data"],
   additionalProperties: false,
   properties: {
-    formaat: { enum: ["html", "tekst", "docx", "xlsx", "pptx", "eml"] },
+    formaat: { enum: ["html", "tekst", "docx", "xlsx", "pptx", "odt", "ods", "odp", "pdf", "eml"] },
     mediaType: { type: "string", minLength: 3 },
     codering: { enum: ["tekst", "base64"] },
     data: { type: "string" },

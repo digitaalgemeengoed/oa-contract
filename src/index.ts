@@ -7,13 +7,13 @@
  * formaat, verder niets.
  */
 
-export const CONTRACT_VERSIE = "0.1.0";
+export const CONTRACT_VERSIE = "0.2.0";
 
 // ---------------------------------------------------------------------------
 // Inhoud
 // ---------------------------------------------------------------------------
 
-export type Formaat = "html" | "tekst" | "docx" | "xlsx" | "pptx" | "eml";
+export type Formaat = "html" | "tekst" | "docx" | "xlsx" | "pptx" | "odt" | "ods" | "odp" | "pdf" | "eml";
 
 export interface Inhoud {
   formaat: Formaat;
@@ -37,6 +37,8 @@ export const OPTIONELE_VERMOGENS = [
   "plek-tonen",
   "opslaan-melden",
   "afdruk-schrijven",
+  /** Het bestand zelf opleveren (docx, odt …), naast de html waarmee de assistent werkt. */
+  "bestand-opleveren",
 ] as const;
 
 export type Basisvermogen = (typeof BASISVERMOGENS)[number];
@@ -84,6 +86,12 @@ export interface Adapter {
   /** Schrijft de identificatie in het bestand, zodat het herkenbaar blijft buiten het platform. */
   schrijfAfdruk?(afdruk: Afdruk): Promise<void>;
   leesAfdruk?(): Promise<Afdruk | null>;
+  /**
+   * Het bestand zoals de werkomgeving het bewaart (docx, odt …), base64. Het
+   * platform legt dat vast als de versie; de html uit leverInhoud gaat mee
+   * als weergave. Zonder dit vermogen is de html zelf de versie.
+   */
+  leverBestand?(): Promise<Inhoud>;
 }
 
 export function heeftVermogen(w: Werkomgeving, v: Vermogen): boolean {
@@ -146,6 +154,18 @@ export interface ObjecttypeVerwijzing {
   versie: number;
 }
 
+/**
+ * Een weergave van een versie: dezelfde inhoud in een andere vorm, zoals de
+ * html waarmee de assistent werkt naast het originele docx-bestand (MDTO:
+ * een bestand dat een representatie is van een ander bestand).
+ */
+export interface Weergave {
+  formaat: Formaat;
+  mediaType: string;
+  grootte: number;
+  sha256: string;
+}
+
 export interface Versie {
   nummer: number;
   sha256: string;
@@ -154,6 +174,8 @@ export interface Versie {
   formaat: Formaat;
   vastgelegd: string;
   door: string;
+  /** Andere vormen van deze versie; de versie zelf is het origineel. */
+  weergaven?: Weergave[];
 }
 
 export interface Informatieobject {
@@ -232,6 +254,10 @@ export const LEES = {
   objecttypen: "/api/lees/objecttypen",
   gebeurtenissen: (id: string) => `/api/lees/objecten/${encodeURIComponent(id)}/gebeurtenissen`,
   wieBenIk: "/api/lees/wie-ben-ik",
+  /** De inhoud van een versie: het origineel. */
+  inhoud: (id: string, nummer: number) => `/api/lees/objecten/${encodeURIComponent(id)}/versies/${nummer}/inhoud`,
+  /** Een weergave van een versie, bijvoorbeeld de html. */
+  weergave: (id: string, nummer: number, formaat: Formaat) => `/api/lees/objecten/${encodeURIComponent(id)}/versies/${nummer}/weergaven/${formaat}`,
   /** Zoeken in de index van de eigen gemeente; elk resultaat is bevestigd in het register. */
   zoeken: (vraag: Zoekvraag) => `/api/lees/zoeken?${zoekparameters(vraag)}`,
 } as const;
