@@ -178,8 +178,17 @@ export interface Versie {
   weergaven?: Weergave[];
 }
 
+/**
+ * Zakelijk: een archiefstuk, met metadata volgens het objecttype, in het
+ * archief en de zoekindex. Persoonlijk: buiten het archief en de Woo, geen
+ * metadata, alleen zichtbaar voor wie het vastlegde. De medewerker kiest.
+ */
+export type Aard = "zakelijk" | "persoonlijk";
+
 export interface Informatieobject {
   identificatie: string;
+  /** Ontbreekt bij een platform zonder dit onderscheid: dan zakelijk. */
+  aard?: Aard;
   gemeente: string;
   objecttype: ObjecttypeVerwijzing;
   metadata: Record<string, unknown>;
@@ -216,6 +225,7 @@ export const GEBEURTENISTYPEN = [
   "weergave.toegevoegd",
   "versie.gewaarmerkt",
   "object.onleesbaar-gemaakt",
+  "aard.gewijzigd",
   "objecttype.gepubliceerd",
   "delegatie.verleend",
   "delegatie.ingetrokken",
@@ -269,6 +279,8 @@ export const VASTLEG = {
   versies: (id: string) => `/api/vastleg/objecten/${encodeURIComponent(id)}/versies`,
   /** Sleutel vernietigen: alleen voor de rol beheerder, met een reden. */
   onleesbaar: (id: string) => `/api/vastleg/objecten/${encodeURIComponent(id)}/onleesbaar`,
+  /** Zakelijk of persoonlijk wijzigen (in het prototype: alleen persoonlijk naar zakelijk). */
+  aard: (id: string) => `/api/vastleg/objecten/${encodeURIComponent(id)}/aard`,
 } as const;
 
 // ---------------------------------------------------------------------------

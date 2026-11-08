@@ -1,5 +1,9 @@
 # Wijzigingen
 
+## 0.3.1 — 2026-11-09
+
+Zakelijk of persoonlijk: type `Aard`, `Informatieobject.aard`, gebeurtenis `aard.gewijzigd` en `VASTLEG.aard`. Alles optioneel: een platform zonder dit onderscheid levert zakelijk.
+
 ## 0.3.0 — 2026-11-08
 
 Het origineel bewaren: optioneel vermogen `bestand-opleveren` met `Adapter.leverBestand()`, `Versie.weergaven` (MDTO: representaties), formaten `odt`, `ods`, `odp` en `pdf`, en `LEES.inhoud` en `LEES.weergave`. Contractversie 0.2.0.
