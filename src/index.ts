@@ -138,6 +138,12 @@ export interface Adapter {
   herstelPii?(plekken: { plek: string; waarde: string }[]): Promise<void>;
   /** Na bevestigen: de markering is geen voorvertoning meer. */
   zetPiiDefinitief?(): Promise<void>;
+  /**
+   * Een andere kleur (niveau) voor alle plekken van een plaatshouder, na een
+   * andere grondslag. Zonder deze functie zet de kern de plekken terug en
+   * markeert ze opnieuw.
+   */
+  herkleurPii?(plaatshouder: string, ppl: Ppl): Promise<void>;
   toonPiiPlek?(plek: string): void;
   /** Meldt een klik op een plaatshouder in het document; geeft een functie om te stoppen. */
   bijPiiKlik?(terugroep: (plek: PiiPlek) => void): () => void;
@@ -318,6 +324,7 @@ export const GEBEURTENISTYPEN = [
   "pii.ingezien",
   "pii.vernietigd",
   "pii.teruggezet",
+  "pii.categorie-gewijzigd",
   "versie.teruggezet",
   "objecttype.gepubliceerd",
   "delegatie.verleend",
@@ -392,6 +399,8 @@ export const VASTLEG = {
   piiOnthul: (id: string) => `/api/vastleg/objecten/${encodeURIComponent(id)}/pii/onthul`,
   /** Voorvertoningen die de medewerker laat staan, uit het register halen. */
   piiVervallen: (id: string) => `/api/vastleg/objecten/${encodeURIComponent(id)}/pii/vervallen`,
+  /** Een voorvertoning in een andere AVG-categorie (grondslag) zetten; wordt vastgelegd. */
+  piiCategorie: (id: string) => `/api/vastleg/objecten/${encodeURIComponent(id)}/pii/categorie`,
   /**
    * Bevestigen: de voorvertoningen worden definitief en het geanonimiseerde
    * document wordt een nieuwe versie (soort anonimisering, bron = het origineel).
@@ -505,11 +514,47 @@ export type Ppl = 0 | 1 | 2 | 3;
  */
 export type PiiCategorie = "c1" | "c2" | "c3";
 
-export const PII_CATEGORIE: Record<PiiCategorie, { artikel: number; ppl: Ppl; algoritme: string; omschrijving: string }> = {
-  c1: { artikel: 6, ppl: 1, algoritme: "AES-256-GCM", omschrijving: "gewone persoonsgegevens" },
-  c2: { artikel: 9, ppl: 2, algoritme: "ChaCha20-Poly1305", omschrijving: "bijzondere persoonsgegevens" },
-  c3: { artikel: 10, ppl: 3, algoritme: "RSA-OAEP", omschrijving: "strafrechtelijke gegevens" },
+export const PII_CATEGORIE: Record<
+  PiiCategorie,
+  {
+    artikel: number;
+    ppl: Ppl;
+    algoritme: string;
+    omschrijving: string;
+    /** Voor het paneel: wat er onder valt en wat de AVG ervan zegt, in gewone taal. */
+    uitleg: string;
+  }
+> = {
+  c1: {
+    artikel: 6,
+    ppl: 1,
+    algoritme: "AES-256-GCM",
+    omschrijving: "gewone persoonsgegevens",
+    uitleg:
+      "Gegevens die iemand herkenbaar maken, zoals naam, adres, telefoonnummer, e-mailadres of BSN. De gemeente mag ze gebruiken als daar een grondslag voor is, meestal een wettelijke plicht of een publieke taak.",
+  },
+  c2: {
+    artikel: 9,
+    ppl: 2,
+    algoritme: "ChaCha20-Poly1305",
+    omschrijving: "bijzondere persoonsgegevens",
+    uitleg:
+      "Gevoelige gegevens: gezondheid, religie of levensovertuiging, ras of etnische afkomst, politieke opvattingen, vakbondslidmaatschap, seksueel leven of geaardheid, genetische en biometrische gegevens. Gebruiken is verboden, tenzij de wet een uitzondering maakt. Daarom strenger beschermd.",
+  },
+  c3: {
+    artikel: 10,
+    ppl: 3,
+    algoritme: "RSA-OAEP",
+    omschrijving: "strafrechtelijke gegevens",
+    uitleg:
+      "Gegevens over strafbare feiten, verdenkingen en veroordelingen. Alleen onder toezicht van de overheid of als de wet het toestaat. Het strengst beschermd.",
+  },
 };
+
+/** "AVG art. 9 · bijzondere persoonsgegevens" */
+export function grondslagLabel(c: PiiCategorie): string {
+  return `AVG art. ${PII_CATEGORIE[c].artikel} · ${PII_CATEGORIE[c].omschrijving}`;
+}
 
 /** Per soort: de plaatshouder in het document en de AVG-categorie. */
 export const PII_SOORT: Record<PiiSoort, { plaatshouder: string; categorie: PiiCategorie }> = {
@@ -544,6 +589,8 @@ export interface PiiInvoer {
   soort: PiiSoort;
   waarde: string;
   bron: "model" | "patroon" | "medewerker";
+  /** Een andere AVG-categorie dan die van de soort (de medewerker beslist). */
+  categorie?: PiiCategorie;
 }
 
 /** Een regel in het register; de waarde zelf alleen na inzien (`PiiOnthuld`). */

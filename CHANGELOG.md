@@ -1,5 +1,14 @@
 # Wijzigingen
 
+## 0.4.2 — 2026-11-09
+
+De grondslag van een persoonsgegeven, begrijpelijk en aan te passen:
+
+- `PII_CATEGORIE[c].uitleg`: wat onder de categorie valt en wat de AVG ervan zegt, in gewone taal. `grondslagLabel(c)`: "AVG art. 9 · bijzondere persoonsgegevens".
+- `PiiInvoer.categorie` (optioneel): een andere categorie dan die van de soort.
+- Route `VASTLEG.piiCategorie` en gebeurtenis `pii.categorie-gewijzigd`: een voorvertoning in een andere categorie zetten.
+- Optioneel `Adapter.herkleurPii(plaatshouder, ppl)`.
+
 ## 0.4.1 — 2026-11-09
 
 Toegankelijkheid van het bestand zelf (oa-wcag), alles optioneel:
