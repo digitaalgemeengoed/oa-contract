@@ -1,5 +1,14 @@
 # Wijzigingen
 
+## 0.4.1 — 2026-11-09
+
+Toegankelijkheid van het bestand zelf (oa-wcag), alles optioneel:
+
+- `ToegankelijkheidVraag.bestand`: het bestand (docx, xlsx, pptx) naast de html.
+- `Bevinding.bron`: `"inhoud"` (de html) of `"bestand"`.
+- `Plek.fragment`: tekst om de plek op te zoeken als er geen pad is.
+- `leverBestand(voorkeur?: "ooxml")`: liever docx, xlsx of pptx, als de werkomgeving dat kan.
+
 ## 0.4.0 — 2026-11-09
 
 Anonimiseren in het document (zoals de MIRA-demo):

@@ -70,6 +70,11 @@ export interface Plek {
   pad: string;
   /** Leesbare omschrijving, bv. "Afbeelding in alinea 4". */
   beschrijving: string;
+  /**
+   * Tekst om de plek op te zoeken, als er geen pad is (pad leeg): bij een
+   * bevinding uit het bestand in plaats van uit de html.
+   */
+  fragment?: string;
 }
 
 /** Wat een melding in de werkomgeving zegt. */
@@ -103,8 +108,12 @@ export interface Adapter {
    * Het bestand zoals de werkomgeving het bewaart (docx, odt …), base64. Het
    * platform legt dat vast als de versie; de html uit leverInhoud gaat mee
    * als weergave. Zonder dit vermogen is de html zelf de versie.
+   *
+   * Met voorkeur "ooxml" liever docx, xlsx of pptx (voor de
+   * toegankelijkheidscontrole van het bestand); kan de werkomgeving dat
+   * niet, dan het gewone formaat.
    */
-  leverBestand?(): Promise<Inhoud>;
+  leverBestand?(voorkeur?: "ooxml"): Promise<Inhoud>;
   /**
    * Vervangt overal in het document (ook in tabellen, op elk blad of elke
    * dia) de tekst `van` door `naar`, als heel woord en hoofdlettergevoelig.
@@ -202,6 +211,8 @@ export interface Bevinding {
   melding: string;
   plek?: Plek;
   voorstel?: Voorstel;
+  /** Waar de bevinding vandaan komt: de html van de werkomgeving (standaard) of het bestand zelf. */
+  bron?: "inhoud" | "bestand";
 }
 
 // ---------------------------------------------------------------------------
@@ -444,6 +455,12 @@ export interface OnleesbaarMaken {
 export interface ToegankelijkheidVraag {
   inhoud: Inhoud;
   taal?: string;
+  /**
+   * Het bestand zelf (docx, xlsx of pptx), voor de controles die in de html
+   * niet te zien zijn: titel en taal, contrast, leesvolgorde, alt-tekst van
+   * grafieken … Zonder bestand alleen de controle van de html.
+   */
+  bestand?: Inhoud;
 }
 export interface ToegankelijkheidAntwoord {
   bevindingen: Bevinding[];
