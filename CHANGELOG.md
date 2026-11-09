@@ -1,5 +1,15 @@
 # Wijzigingen
 
+## 0.5.0 — 2026-11-09
+
+**Metadatamodellen** (`metadatamodellen.ts`), voor de pagina Metadatamodel in het beheerportaal:
+
+- `METADATAMODELLEN`: catalogi van MDTO 1.0, RGBZ 2.0 (ZGW Documenten-API) en TMLO 1.2: per veld de sleutel, het element in het model, label, uitleg, soort (tekst, lange tekst, datum, keuze, getal), waardelijst en of het model het verplicht noemt. Velden die geen element van het model zijn maar nodig voor de Woo of het zaakgericht werken, staan erbij als aanvulling.
+- `WAARDELIJSTEN`, waaronder de Woo-informatiecategorieën uit TOOI, de vertrouwelijkheidaanduiding en status uit RGBZ, waardering en openbaarheid uit MDTO, en talen (ISO 639-1 en 639-2).
+- `ROLLEN` (titel, omschrijving, informatiecategorie, vertrouwelijkheid, taal, zaak, dossier, auteur, datum, trefwoorden): wat een veld betekent voor de assistent, ongeacht het model.
+- `MetadatamodelConfig` (de keuze van een gemeente, met eigen velden), `standaardConfig`, `controleerConfig` (fouten en waarschuwingen), `actieveVelden`, `schemaUitConfig` (JSON Schema met `x-mdto`/`x-rgbz`/`x-tmlo`, `x-oa-rol`, `x-oa-model` en de keuze zelf in `x-oa-config`), `configUitSchema`, `rollenVan` en `rolWaarden` (ook voor de oude versie 1).
+- `Zoekresultaat.kern`: de waarden per rol. `LEES.objecttype(naam, versie?)`.
+
 ## 0.4.2 — 2026-11-09
 
 De grondslag van een persoonsgegeven, begrijpelijk en aan te passen:

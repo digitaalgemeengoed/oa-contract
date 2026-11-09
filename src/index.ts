@@ -1,3 +1,4 @@
+import type { Rol } from "./metadatamodellen.js";
 /**
  * Het contract van de Office Assistent.
  *
@@ -374,7 +375,7 @@ export const LEES = {
   /** Het register van persoonsgegevens van een stuk, zonder waarden. */
   pii: (id: string) => `/api/lees/objecten/${encodeURIComponent(id)}/pii`,
   object: (id: string) => `/api/lees/objecten/${encodeURIComponent(id)}`,
-  objecttype: (naam: string) => `/api/lees/objecttypen/${encodeURIComponent(naam)}`,
+  objecttype: (naam: string, versie?: number) => `/api/lees/objecttypen/${encodeURIComponent(naam)}${versie ? `?versie=${versie}` : ""}`,
   objecttypen: "/api/lees/objecttypen",
   gebeurtenissen: (id: string) => `/api/lees/objecten/${encodeURIComponent(id)}/gebeurtenissen`,
   wieBenIk: "/api/lees/wie-ben-ik",
@@ -445,6 +446,8 @@ export interface Zoekresultaat {
   objecttype: ObjecttypeVerwijzing;
   /** Metadata uit het register, niet uit de index. */
   metadata: Record<string, unknown>;
+  /** De waarden per rol (titel, informatiecategorie …), ongeacht het metadatamodel. */
+  kern?: Partial<Record<Rol, string>>;
   versie: number | null;
   /** Fragmenten uit de index, met <mark> om de treffers. */
   fragmenten: string[];
@@ -696,3 +699,4 @@ export interface Fout {
 }
 
 export * from "./schemas.js";
+export * from "./metadatamodellen.js";
