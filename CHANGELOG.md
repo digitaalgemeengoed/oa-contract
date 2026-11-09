@@ -1,5 +1,15 @@
 # Wijzigingen
 
+## 0.3.3 — 2026-11-09
+
+Anonimiseren bij de bron (zoals de MIRA-demo):
+
+- Optionele vermogens `tekst-vervangen` (`Adapter.vervangTekst(paren)`: waarden als heel woord vervangen in het document zelf, geeft het aantal) en `selectie-lezen` (`Adapter.leesSelectie()`).
+- Register van persoonsgegevens: `PiiCategorie` (c1 art. 6 AES-256-GCM, c2 art. 9 ChaCha20-Poly1305, c3 art. 10 RSA-OAEP), `PII_CATEGORIE`, `PII_SOORT` (plaatshouder en categorie per soort), `PiiInvoer`, `PiiRegistratie`, `PiiRegister`, `PiiOnthuld`.
+- `PiiSoort` uitgebreid: geboortedatum, bedrag, gezondheid, religie, etniciteit, biometrie, strafrechtelijk, overig.
+- `Ppl` (0 tot 3) en `niveau` op `Actor` en `WieBenIk`.
+- Gebeurtenissen `pii.geregistreerd`, `pii.ingezien`, `pii.vernietigd`; routes `LEES.pii`, `VASTLEG.pii`, `VASTLEG.piiOnthul`, `VASTLEG.piiVernietig`.
+
 ## 0.3.2 — 2026-11-09
 
 Anonimiseren: `PiiSoort`, `Treffer`, `AnonimiseerVraag`/`AnonimiseerAntwoord`, `ToepassenVraag`/`ToepassenAntwoord`, `LEES.anonimiseren`, `LEES.anonimiserenToepassen`, `VASTLEG.anonimisering`. `Weergave.soort` ("weergave" of "geanonimiseerd") en `volgnummer`. Gebeurtenis `anonimisering.vastgelegd`.

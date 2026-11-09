@@ -39,6 +39,10 @@ export const OPTIONELE_VERMOGENS = [
   "afdruk-schrijven",
   /** Het bestand zelf opleveren (docx, odt …), naast de html waarmee de assistent werkt. */
   "bestand-opleveren",
+  /** Tekst in het hele document vervangen door andere tekst (anonimiseren bij de bron). */
+  "tekst-vervangen",
+  /** De tekst lezen die de medewerker in het document heeft geselecteerd. */
+  "selectie-lezen",
 ] as const;
 
 export type Basisvermogen = (typeof BASISVERMOGENS)[number];
@@ -92,6 +96,15 @@ export interface Adapter {
    * als weergave. Zonder dit vermogen is de html zelf de versie.
    */
   leverBestand?(): Promise<Inhoud>;
+  /**
+   * Vervangt overal in het document (ook in tabellen, op elk blad of elke
+   * dia) de tekst `van` door `naar`, als heel woord en hoofdlettergevoelig.
+   * Geeft het aantal vervangingen terug. De opmaak blijft zoveel als de
+   * werkomgeving toelaat.
+   */
+  vervangTekst?(paren: { van: string; naar: string }[]): Promise<number>;
+  /** De geselecteerde tekst in het document; leeg als er niets is geselecteerd. */
+  leesSelectie?(): Promise<string>;
 }
 
 export function heeftVermogen(w: Werkomgeving, v: Vermogen): boolean {
@@ -236,6 +249,9 @@ export const GEBEURTENISTYPEN = [
   "object.onleesbaar-gemaakt",
   "aard.gewijzigd",
   "anonimisering.vastgelegd",
+  "pii.geregistreerd",
+  "pii.ingezien",
+  "pii.vernietigd",
   "objecttype.gepubliceerd",
   "delegatie.verleend",
   "delegatie.ingetrokken",
@@ -247,6 +263,12 @@ export interface Actor {
   /** Onderwerp uit het token (Keycloak sub). */
   sub: string;
   naam?: string;
+  /**
+   * Hoeveel persoonsgegevens deze medewerker mag inzien (PPL): 0 geen,
+   * 1 gewone (AVG art. 6), 2 ook bijzondere (art. 9), 3 ook strafrechtelijke
+   * (art. 10). Uit de rollen ppl-1, ppl-2, ppl-3.
+   */
+  niveau?: Ppl;
   /** Gezet als een leverancier namens de gemeente handelt. */
   namens?: string;
 }
@@ -273,6 +295,8 @@ export const LEES = {
   anonimiseren: "/api/lees/anonimiseren",
   /** De gekozen treffers afschermen in de html; leest alleen, legt niets vast. */
   anonimiserenToepassen: "/api/lees/anonimiseren/toepassen",
+  /** Het register van persoonsgegevens van een stuk, zonder waarden. */
+  pii: (id: string) => `/api/lees/objecten/${encodeURIComponent(id)}/pii`,
   object: (id: string) => `/api/lees/objecten/${encodeURIComponent(id)}`,
   objecttype: (naam: string) => `/api/lees/objecttypen/${encodeURIComponent(naam)}`,
   objecttypen: "/api/lees/objecttypen",
@@ -293,6 +317,12 @@ export const VASTLEG = {
   versies: (id: string) => `/api/vastleg/objecten/${encodeURIComponent(id)}/versies`,
   /** Sleutel vernietigen: alleen voor de rol beheerder, met een reden. */
   onleesbaar: (id: string) => `/api/vastleg/objecten/${encodeURIComponent(id)}/onleesbaar`,
+  /** Persoonsgegevens versleuteld registreren; geeft de plaatshouders terug. */
+  pii: (id: string) => `/api/vastleg/objecten/${encodeURIComponent(id)}/pii`,
+  /** Originele waarden inzien (binnen het eigen PPL-niveau); wordt vastgelegd als gebeurtenis. */
+  piiOnthul: (id: string) => `/api/vastleg/objecten/${encodeURIComponent(id)}/pii/onthul`,
+  /** De sleutel van één categorie vernietigen (beheerder): die gegevens zijn daarna onleesbaar. */
+  piiVernietig: (id: string) => `/api/vastleg/objecten/${encodeURIComponent(id)}/pii/vernietig`,
   /** Een geanonimiseerde weergave bij een versie vastleggen. */
   anonimisering: (id: string, nummer: number) => `/api/vastleg/objecten/${encodeURIComponent(id)}/versies/${nummer}/anonimisering`,
   /** Zakelijk of persoonlijk wijzigen (in het prototype: alleen persoonlijk naar zakelijk). */
@@ -368,7 +398,97 @@ export type PiiSoort =
   | "rijbewijs"
   | "kvk-nummer"
   | "btw-nummer"
-  | "ip-adres";
+  | "ip-adres"
+  | "geboortedatum"
+  | "bedrag"
+  | "gezondheid"
+  | "religie"
+  | "etniciteit"
+  | "biometrie"
+  | "strafrechtelijk"
+  | "overig";
+
+/** PPL: welk niveau van persoonsgegevens iemand mag zien (0 tot 3). */
+export type Ppl = 0 | 1 | 2 | 3;
+
+/**
+ * AVG-categorie van een persoonsgegeven, met een eigen sleutel per document:
+ * c1 gewone persoonsgegevens (art. 6), AES-256-GCM;
+ * c2 bijzondere persoonsgegevens (art. 9), ChaCha20-Poly1305;
+ * c3 strafrechtelijke gegevens (art. 10), RSA-OAEP met een certificaat.
+ */
+export type PiiCategorie = "c1" | "c2" | "c3";
+
+export const PII_CATEGORIE: Record<PiiCategorie, { artikel: number; ppl: Ppl; algoritme: string; omschrijving: string }> = {
+  c1: { artikel: 6, ppl: 1, algoritme: "AES-256-GCM", omschrijving: "gewone persoonsgegevens" },
+  c2: { artikel: 9, ppl: 2, algoritme: "ChaCha20-Poly1305", omschrijving: "bijzondere persoonsgegevens" },
+  c3: { artikel: 10, ppl: 3, algoritme: "RSA-OAEP", omschrijving: "strafrechtelijke gegevens" },
+};
+
+/** Per soort: de plaatshouder in het document en de AVG-categorie. */
+export const PII_SOORT: Record<PiiSoort, { plaatshouder: string; categorie: PiiCategorie }> = {
+  naam: { plaatshouder: "PERSOON", categorie: "c1" },
+  adres: { plaatshouder: "ADRES", categorie: "c1" },
+  plaats: { plaatshouder: "PLAATS", categorie: "c1" },
+  organisatie: { plaatshouder: "ORGANISATIE", categorie: "c1" },
+  datum: { plaatshouder: "DATUM", categorie: "c1" },
+  bsn: { plaatshouder: "BSN", categorie: "c1" },
+  iban: { plaatshouder: "IBAN", categorie: "c1" },
+  telefoon: { plaatshouder: "TELEFOON", categorie: "c1" },
+  "e-mail": { plaatshouder: "E-MAIL", categorie: "c1" },
+  kenteken: { plaatshouder: "KENTEKEN", categorie: "c1" },
+  zaaknummer: { plaatshouder: "ZAAKNUMMER", categorie: "c1" },
+  identiteitsbewijs: { plaatshouder: "DOCUMENTNUMMER", categorie: "c1" },
+  rijbewijs: { plaatshouder: "RIJBEWIJS", categorie: "c1" },
+  "kvk-nummer": { plaatshouder: "KVK", categorie: "c1" },
+  "btw-nummer": { plaatshouder: "BTW", categorie: "c1" },
+  "ip-adres": { plaatshouder: "IP-ADRES", categorie: "c1" },
+  geboortedatum: { plaatshouder: "GEBOORTEDATUM", categorie: "c1" },
+  bedrag: { plaatshouder: "BEDRAG", categorie: "c1" },
+  gezondheid: { plaatshouder: "GEZONDHEID", categorie: "c2" },
+  religie: { plaatshouder: "RELIGIE", categorie: "c2" },
+  etniciteit: { plaatshouder: "ETNICITEIT", categorie: "c2" },
+  biometrie: { plaatshouder: "BIOMETRIE", categorie: "c2" },
+  strafrechtelijk: { plaatshouder: "STRAFRECHTELIJK", categorie: "c3" },
+  overig: { plaatshouder: "OVERIG", categorie: "c1" },
+};
+
+/** Een persoonsgegeven om te registreren: de waarde gaat versleuteld het register in. */
+export interface PiiInvoer {
+  soort: PiiSoort;
+  waarde: string;
+  bron: "model" | "patroon" | "medewerker";
+}
+
+/** Een regel in het register; de waarde zelf alleen na inzien (`PiiOnthuld`). */
+export interface PiiRegistratie {
+  plaatshouder: string;
+  soort: PiiSoort;
+  categorie: PiiCategorie;
+  algoritme: string;
+  /** Naam van de sleutel (per document per categorie), bv. doc-1a2b3-c1. */
+  sleutel: string;
+  bron: PiiInvoer["bron"];
+  /** De eerste versie waarin de plaatshouder staat. */
+  versie: number;
+  vastgelegd: string;
+  door: string;
+  /** De sleutel van deze categorie is vernietigd: de waarde is onleesbaar. */
+  vernietigd?: boolean;
+}
+
+export interface PiiRegister {
+  registraties: PiiRegistratie[];
+  /** Versies tot en met deze bevatten de gegevens nog leesbaar; alleen PPL 3 mag ze lezen. */
+  metGegevensTot?: number;
+  /** Het niveau van wie vraagt. */
+  niveau: Ppl;
+}
+
+export interface PiiOnthuld {
+  plaatshouder: string;
+  waarde: string;
+}
 
 /**
  * Een gevonden persoonsgegeven. `begin` en `eind` tellen in de platte tekst
@@ -428,6 +548,8 @@ export interface WieBenIk {
   naam: string;
   gemeente: string;
   rollen: string[];
+  /** PPL-niveau, zie Actor.niveau. */
+  niveau?: Ppl;
   namens?: string;
 }
 

@@ -9,7 +9,7 @@ Het contract van de **Office Assistent**: de afspraak tussen werkomgeving (via d
 | Onderdeel | Inhoud |
 |---|---|
 | `Inhoud` | Inhoud van een stuk met een aanduiding van het formaat. Het contract kent verder niets. |
-| Vermogens | Drie basisvermogens die elke adapter levert (inhoud opleveren, inhoud vervangen, tonen) en optionele vermogens (deel vervangen, plek tonen, in beeld melden, opslaan melden, afdruk schrijven). |
+| Vermogens | Drie basisvermogens die elke adapter levert (inhoud opleveren, inhoud vervangen, tonen) en optionele vermogens (deel vervangen, plek tonen, in beeld melden, opslaan melden, afdruk schrijven, tekst vervangen, selectie lezen). Ook de typen voor het register van persoonsgegevens (AVG-categorie, plaatshouder, PPL-niveau). |
 | `Adapter` | De interface van een adapter. Zonder sleutels, tokens of gegevens. |
 | `Bevinding` | Wat een module signaleert: ernst, norm, plek en voorstel. Signaleren legt niets vast. |
 | Gebeurtenissen | De typen gebeurtenissen; elke vastlegging in het platform is er één. |
