@@ -1,5 +1,13 @@
 # Wijzigingen
 
+## 0.4.0 — 2026-11-09
+
+Anonimiseren in het document (zoals de MIRA-demo):
+
+- Vermogens `pii-markeren` (`markeerPii`, `leesPiiPlekken`, `herstelPii`, `zetPiiDefinitief`, `toonPiiPlek`), `pii-klik` (`bijPiiKlik`) en `eigenschap-schrijven` (`schrijfDocumenteigenschap`, voor de eigenschap Versie). Typen `PiiMarkering` en `PiiPlek`.
+- `Versie.soort` (gewoon, anonimisering, terugzetting), `bronversie`, `ppl` (het niveau om de versie te lezen) en `beperkt` (alleen informatiebeheer). `Actor.beheerder`. `PiiRegistratie.status` (voorvertoning of bevestigd).
+- Routes `VASTLEG.piiVervallen`, `piiBevestig`, `piiTerugzetten`, `versieTerugzetten`; gebeurtenissen `pii.teruggezet` en `versie.teruggezet`.
+
 ## 0.3.3 — 2026-11-09
 
 Anonimiseren bij de bron (zoals de MIRA-demo):

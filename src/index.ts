@@ -43,6 +43,15 @@ export const OPTIONELE_VERMOGENS = [
   "tekst-vervangen",
   /** De tekst lezen die de medewerker in het document heeft geselecteerd. */
   "selectie-lezen",
+  /**
+   * Plaatshouders als gemarkeerd element in het document zetten, per plek
+   * terugzetten en de plekken teruglezen (anonimiseren in het document).
+   */
+  "pii-markeren",
+  /** Melden dat de medewerker in het document op een plaatshouder klikt. */
+  "pii-klik",
+  /** Een documenteigenschap schrijven die de medewerker ziet (bv. Versie). */
+  "eigenschap-schrijven",
 ] as const;
 
 export type Basisvermogen = (typeof BASISVERMOGENS)[number];
@@ -105,6 +114,43 @@ export interface Adapter {
   vervangTekst?(paren: { van: string; naar: string }[]): Promise<number>;
   /** De geselecteerde tekst in het document; leeg als er niets is geselecteerd. */
   leesSelectie?(): Promise<string>;
+
+  // --- Anonimiseren in het document ("pii-markeren", "pii-klik") ---------
+
+  /**
+   * Vervangt elke waarde (als heel woord) door zijn plaatshouder, als
+   * gemarkeerd element in het document: gekleurd naar het PPL-niveau en,
+   * zolang `voorvertoning`, gestippeld. Geeft de nieuwe plekken terug.
+   */
+  markeerPii?(markeringen: PiiMarkering[]): Promise<PiiPlek[]>;
+  /** Alle plaatshouders die nu in het document staan, in de volgorde van het document. */
+  leesPiiPlekken?(): Promise<PiiPlek[]>;
+  /** Zet op deze plekken de oorspronkelijke tekst terug (en haalt de markering weg). */
+  herstelPii?(plekken: { plek: string; waarde: string }[]): Promise<void>;
+  /** Na bevestigen: de markering is geen voorvertoning meer. */
+  zetPiiDefinitief?(): Promise<void>;
+  toonPiiPlek?(plek: string): void;
+  /** Meldt een klik op een plaatshouder in het document; geeft een functie om te stoppen. */
+  bijPiiKlik?(terugroep: (plek: PiiPlek) => void): () => void;
+  /** Een documenteigenschap die de medewerker in het bestand ziet ("eigenschap-schrijven"). */
+  schrijfDocumenteigenschap?(naam: string, waarde: string): Promise<void>;
+}
+
+/** Wat de werkomgeving in het document zet. */
+export interface PiiMarkering {
+  van: string;
+  plaatshouder: string;
+  /** Bepaalt de kleur: 1 art. 6, 2 art. 9, 3 art. 10. */
+  ppl: Ppl;
+  voorvertoning: boolean;
+}
+
+/** Eén plek in het document waar een plaatshouder staat. */
+export interface PiiPlek {
+  /** Kenmerk van deze plek in het document (uniek binnen het document). */
+  plek: string;
+  plaatshouder: string;
+  voorvertoning: boolean;
 }
 
 export function heeftVermogen(w: Werkomgeving, v: Vermogen): boolean {
@@ -198,6 +244,14 @@ export interface Versie {
   door: string;
   /** Andere vormen van deze versie; de versie zelf is het origineel. */
   weergaven?: Weergave[];
+  /** Hoe de versie ontstond; ontbreekt = gewoon. */
+  soort?: "gewoon" | "anonimisering" | "terugzetting";
+  /** Bij anonimisering of terugzetting: de versie waar het van uitging. */
+  bronversie?: number;
+  /** Het niveau dat nodig is om deze versie te lezen (bevat persoonsgegevens); ontbreekt = 0. */
+  ppl?: Ppl;
+  /** Alleen nog voor informatiebeheer (rol beheerder). */
+  beperkt?: boolean;
 }
 
 /**
@@ -252,6 +306,8 @@ export const GEBEURTENISTYPEN = [
   "pii.geregistreerd",
   "pii.ingezien",
   "pii.vernietigd",
+  "pii.teruggezet",
+  "versie.teruggezet",
   "objecttype.gepubliceerd",
   "delegatie.verleend",
   "delegatie.ingetrokken",
@@ -271,6 +327,8 @@ export interface Actor {
   niveau?: Ppl;
   /** Gezet als een leverancier namens de gemeente handelt. */
   namens?: string;
+  /** Informatiebeheer (rol beheerder): mag beperkte versies lezen. */
+  beheerder?: boolean;
 }
 
 export interface Gebeurtenis {
@@ -321,6 +379,17 @@ export const VASTLEG = {
   pii: (id: string) => `/api/vastleg/objecten/${encodeURIComponent(id)}/pii`,
   /** Originele waarden inzien (binnen het eigen PPL-niveau); wordt vastgelegd als gebeurtenis. */
   piiOnthul: (id: string) => `/api/vastleg/objecten/${encodeURIComponent(id)}/pii/onthul`,
+  /** Voorvertoningen die de medewerker laat staan, uit het register halen. */
+  piiVervallen: (id: string) => `/api/vastleg/objecten/${encodeURIComponent(id)}/pii/vervallen`,
+  /**
+   * Bevestigen: de voorvertoningen worden definitief en het geanonimiseerde
+   * document wordt een nieuwe versie (soort anonimisering, bron = het origineel).
+   */
+  piiBevestig: (id: string) => `/api/vastleg/objecten/${encodeURIComponent(id)}/pii/bevestig`,
+  /** Bevestigde gegevens terugzetten in het document: geeft de waarden (binnen het eigen niveau). */
+  piiTerugzetten: (id: string) => `/api/vastleg/objecten/${encodeURIComponent(id)}/pii/terugzetten`,
+  /** Een eerdere versie terugzetten als nieuwe versie (PPL 3 en een reden). */
+  versieTerugzetten: (id: string, nummer: number) => `/api/vastleg/objecten/${encodeURIComponent(id)}/versies/${nummer}/terugzetten`,
   /** De sleutel van één categorie vernietigen (beheerder): die gegevens zijn daarna onleesbaar. */
   piiVernietig: (id: string) => `/api/vastleg/objecten/${encodeURIComponent(id)}/pii/vernietig`,
   /** Een geanonimiseerde weergave bij een versie vastleggen. */
@@ -475,6 +544,8 @@ export interface PiiRegistratie {
   door: string;
   /** De sleutel van deze categorie is vernietigd: de waarde is onleesbaar. */
   vernietigd?: boolean;
+  /** Voorvertoning (nog niet bevestigd) of bevestigd; ontbreekt = bevestigd. */
+  status?: "voorvertoning" | "bevestigd";
 }
 
 export interface PiiRegister {
