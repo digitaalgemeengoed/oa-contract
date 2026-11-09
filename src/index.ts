@@ -700,3 +700,4 @@ export interface Fout {
 
 export * from "./schemas.js";
 export * from "./metadatamodellen.js";
+export * from "./meting.js";

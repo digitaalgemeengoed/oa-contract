@@ -1,6 +1,6 @@
 {
   "name": "@digitaalgemeengoed/oa-contract",
-  "version": "0.5.0",
+  "version": "0.6.0",
   "description": "Het contract van de Office Assistent: inhoud, vermogens, bevindingen, gebeurtenissen en de twee ingangen.",
   "license": "EUPL-1.2",
   "type": "module",

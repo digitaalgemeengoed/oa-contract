@@ -1,5 +1,15 @@
 # Wijzigingen
 
+## 0.6.0 — 2026-11-09
+
+**Meting bij het anonimiseren** (`meting.ts`), voor de kwaliteit in het beheerportaal (Anonimiseren → Kwaliteit):
+
+- `AnonimiseringsMeting` en `MetingItem`: per gegeven de soort, de bron (patroon, model, medewerker), de zekerheid, de uitkomst (bevestigd, gelaten, toegevoegd), de reden bij *Laat staan*, of de soort standaard wordt geanonimiseerd, een gewijzigde grondslag, de vorm, de lengte, een signaalwoord en het aantal plekken. **Nooit de waarde.**
+- `vormVan`: de vorm van een waarde: cijfers worden `9`, hoofdletters `A`, kleine letters `a`; reeksen samengevoegd, spaties en leestekens blijven ("06-51209934" → `9-9`). `lengteVan`: kort, middel of lang.
+- `regexUitVorm`: een begin voor een patroon (`9-9` → `\d+-\d+`).
+- `SIGNAALWOORDEN` en `signaalVoor`: alleen woorden van een vaste lijst ("telefoon", "geboren", "burgemeester", …) die vlak voor een gegeven staan; nooit vrije tekst.
+- `LAAT_STAAN_REDENEN`: geen persoonsgegeven, mag openbaar, verkeerde soort.
+
 ## 0.5.0 — 2026-11-09
 
 **Metadatamodellen** (`metadatamodellen.ts`), voor de pagina Metadatamodel in het beheerportaal:
