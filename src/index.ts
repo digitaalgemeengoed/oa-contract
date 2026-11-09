@@ -164,6 +164,15 @@ export interface Weergave {
   mediaType: string;
   grootte: number;
   sha256: string;
+  /**
+   * "weergave" (standaard): dezelfde inhoud in een andere vorm.
+   * "geanonimiseerd": de weergave met persoonsgegevens afgeschermd, door een
+   * medewerker bevestigd. Het origineel blijft ongewijzigd. Een versie kan
+   * meer dan één geanonimiseerde weergave hebben (correcties); de hoogste
+   * `volgnummer` geldt.
+   */
+  soort?: "weergave" | "geanonimiseerd";
+  volgnummer?: number;
 }
 
 export interface Versie {
@@ -226,6 +235,7 @@ export const GEBEURTENISTYPEN = [
   "versie.gewaarmerkt",
   "object.onleesbaar-gemaakt",
   "aard.gewijzigd",
+  "anonimisering.vastgelegd",
   "objecttype.gepubliceerd",
   "delegatie.verleend",
   "delegatie.ingetrokken",
@@ -259,6 +269,10 @@ export interface Gebeurtenis {
 /** Snelle, lezende vragen: committen nooit. */
 export const LEES = {
   toegankelijkheid: "/api/lees/toegankelijkheid",
+  /** Persoonsgegevens vinden; leest alleen. */
+  anonimiseren: "/api/lees/anonimiseren",
+  /** De gekozen treffers afschermen in de html; leest alleen, legt niets vast. */
+  anonimiserenToepassen: "/api/lees/anonimiseren/toepassen",
   object: (id: string) => `/api/lees/objecten/${encodeURIComponent(id)}`,
   objecttype: (naam: string) => `/api/lees/objecttypen/${encodeURIComponent(naam)}`,
   objecttypen: "/api/lees/objecttypen",
@@ -279,6 +293,8 @@ export const VASTLEG = {
   versies: (id: string) => `/api/vastleg/objecten/${encodeURIComponent(id)}/versies`,
   /** Sleutel vernietigen: alleen voor de rol beheerder, met een reden. */
   onleesbaar: (id: string) => `/api/vastleg/objecten/${encodeURIComponent(id)}/onleesbaar`,
+  /** Een geanonimiseerde weergave bij een versie vastleggen. */
+  anonimisering: (id: string, nummer: number) => `/api/vastleg/objecten/${encodeURIComponent(id)}/versies/${nummer}/anonimisering`,
   /** Zakelijk of persoonlijk wijzigen (in het prototype: alleen persoonlijk naar zakelijk). */
   aard: (id: string) => `/api/vastleg/objecten/${encodeURIComponent(id)}/aard`,
 } as const;
@@ -333,6 +349,66 @@ export interface ToegankelijkheidVraag {
 export interface ToegankelijkheidAntwoord {
   bevindingen: Bevinding[];
   gecontroleerd: string[];
+}
+
+/** Soorten persoonsgegevens die de assistent herkent. */
+export type PiiSoort =
+  | "naam"
+  | "adres"
+  | "plaats"
+  | "organisatie"
+  | "datum"
+  | "bsn"
+  | "iban"
+  | "telefoon"
+  | "e-mail"
+  | "kenteken"
+  | "zaaknummer"
+  | "identiteitsbewijs"
+  | "rijbewijs"
+  | "kvk-nummer"
+  | "btw-nummer"
+  | "ip-adres";
+
+/**
+ * Een gevonden persoonsgegeven. `begin` en `eind` tellen in de platte tekst
+ * die het antwoord meegeeft (`AnonimiseerAntwoord.tekst`).
+ */
+export interface Treffer {
+  id: string;
+  soort: PiiSoort;
+  tekst: string;
+  begin: number;
+  eind: number;
+  /** Zekerheid van de herkenning, 0 tot 1. Door de medewerker toegevoegd: 1. */
+  score: number;
+  bron: "model" | "patroon" | "medewerker";
+  plek?: Plek;
+}
+
+export interface AnonimiseerVraag {
+  inhoud: Inhoud;
+}
+export interface AnonimiseerAntwoord {
+  /** De platte tekst van het stuk; blokken gescheiden door een lege regel. */
+  tekst: string;
+  /** Waar elk blok (alinea, cel, kop) in de tekst staat, en waar in het stuk. */
+  blokken: { begin: number; eind: number; plek: Plek }[];
+  treffers: Treffer[];
+  /** Soorten die standaard worden afgeschermd. */
+  standaard: PiiSoort[];
+  /** Welke herkenning is gebruikt, bv. "OpenAnonymiser (Presidio, spaCy nl_core_news_lg)". */
+  motor: string;
+}
+export interface ToepassenVraag {
+  inhoud: Inhoud;
+  treffers: { begin: number; eind: number; soort: PiiSoort }[];
+}
+export interface ToepassenAntwoord {
+  /** De html met de treffers afgeschermd. */
+  inhoud: Inhoud;
+  /** Aantal afgeschermde gegevens per soort; geen waarden. */
+  overzicht: Partial<Record<PiiSoort, number>>;
 }
 
 export interface ObjectAanmaken {
