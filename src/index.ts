@@ -187,6 +187,13 @@ export interface Afdruk {
   identificatie: string;
   versie: number;
   objecttype: string;
+  /**
+   * De versie van het objecttype (het metadatamodel) waarmee het stuk is
+   * vastgelegd, en de naam van dat model. Zo blijft ook buiten het platform
+   * zichtbaar welke velden voor dit bestand gelden.
+   */
+  objecttypeVersie?: number;
+  model?: string;
 }
 
 // ---------------------------------------------------------------------------

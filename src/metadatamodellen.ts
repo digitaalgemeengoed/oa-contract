@@ -20,7 +20,7 @@ import { VERTROUWELIJKHEID, WOO_INFORMATIECATEGORIEEN } from "./schemas.js";
 export type ModelId = "mdto" | "rgbz" | "tmlo";
 
 /** Wat een veld betekent voor de assistent en het platform. */
-export const ROLLEN = ["titel", "omschrijving", "informatiecategorie", "vertrouwelijkheid", "taal", "zaak", "dossier", "auteur", "datum", "trefwoorden"] as const;
+export const ROLLEN = ["titel", "omschrijving", "informatiecategorie", "vertrouwelijkheid", "taal", "zaak", "dossier", "auteur", "datum", "trefwoorden", "status"] as const;
 export type Rol = (typeof ROLLEN)[number];
 
 export type VeldType = "tekst" | "lange-tekst" | "datum" | "keuze" | "getal";
@@ -163,7 +163,7 @@ export const METADATAMODELLEN: Record<ModelId, Metadatamodel> = {
       { sleutel: "vertrouwelijkheidaanduiding", element: "vertrouwelijkheidaanduiding", label: "Vertrouwelijkheid", beschrijving: "De vertrouwelijkheidaanduiding van het stuk.", type: "keuze", rol: "vertrouwelijkheid", waardelijst: "rgbz-vertrouwelijkheidaanduiding", aan: true, verplicht: true },
       { sleutel: "auteur", element: "auteur", label: "Auteur", beschrijving: "De persoon of organisatie die het stuk heeft gemaakt.", type: "tekst", rol: "auteur", maxLengte: 200, verplichtInModel: true, aan: true, verplicht: true },
       { sleutel: "creatiedatum", element: "creatiedatum", label: "Creatiedatum", beschrijving: "De datum waarop het stuk is gemaakt.", type: "datum", rol: "datum", verplichtInModel: true, aan: true, verplicht: true },
-      { sleutel: "status", element: "status", label: "Status", beschrijving: "Waar het stuk staat in zijn levensloop.", type: "keuze", waardelijst: "rgbz-status", aan: true },
+      { sleutel: "status", element: "status", label: "Status", beschrijving: "Waar het stuk staat in zijn levensloop.", type: "keuze", rol: "status", waardelijst: "rgbz-status", aan: true },
       { sleutel: "taal", element: "taal", label: "Taal", beschrijving: "De taal van het stuk, in drie letters zoals de ZGW-API's die gebruiken.", type: "keuze", rol: "taal", waardelijst: "iso-639-2", standaard: "dut", verplichtInModel: true, aan: true, verplicht: true },
       { sleutel: "zaak", element: "zaakinformatieobject.zaak", label: "Zaak", beschrijving: "Het zaaknummer waar het stuk bij hoort.", type: "tekst", rol: "zaak", maxLengte: 100, aan: true },
       { sleutel: "trefwoorden", element: "trefwoorden", label: "Trefwoorden", beschrijving: "Woorden waarop je het stuk wilt kunnen vinden, met komma's ertussen.", type: "tekst", rol: "trefwoorden", maxLengte: 500 },
@@ -213,6 +213,11 @@ export interface VeldKeuze {
 
 export interface MetadatamodelConfig {
   basis: ModelId;
+  /**
+   * De naam die de gemeente het model geeft, zoals "RGBZ Haarlem". Leeg: de
+   * naam van het basismodel. Een andere naam is ook een nieuwe versie.
+   */
+  naam?: string;
   /** In de volgorde waarin het paneel ze toont. */
   velden: VeldKeuze[];
 }
@@ -238,6 +243,7 @@ export function controleerConfig(c: MetadatamodelConfig): ConfigProbleem[] {
   const model = METADATAMODELLEN[c.basis];
   if (!model) return [{ ernst: "fout", melding: `Onbekend basismodel: ${String(c.basis)}` }];
   const p: ConfigProbleem[] = [];
+  if (c.naam !== undefined && c.naam.trim().length > MODELNAAM_MAX) p.push({ ernst: "fout", melding: `De naam van het model is langer dan ${MODELNAAM_MAX} tekens.` });
   const gezien = new Set<string>();
   const rollen = new Map<Rol, string>();
   for (const k of c.velden) {
@@ -349,6 +355,19 @@ export function schemaUitConfig(c: MetadatamodelConfig): Record<string, unknown>
   };
 }
 
+export const MODELNAAM_MAX = 80;
+
+/** De naam van een model zoals medewerkers die zien: de eigen naam, of die van het basismodel. */
+export function modelnaam(c: Pick<MetadatamodelConfig, "basis" | "naam"> | null | undefined): string {
+  if (!c) return "Standaardmodel";
+  return c.naam?.trim() || METADATAMODELLEN[c.basis]?.naam || "Standaardmodel";
+}
+
+/** Naam en versie van het metadatamodel van een objecttype ("RGBZ Haarlem", 3). */
+export function modelVan(type: { versie: number; schema: unknown }): { naam: string; versie: number } {
+  return { naam: modelnaam(configUitSchema(type.schema)), versie: type.versie };
+}
+
 /** De keuze die bij een schema hoort, als het uit het beheerportaal komt. */
 export function configUitSchema(schema: unknown): MetadatamodelConfig | null {
   const c = (schema as { "x-oa-config"?: MetadatamodelConfig } | null)?.["x-oa-config"];
@@ -368,12 +387,23 @@ const ROL_VERSIE_1: Record<string, Rol> = {
 
 /** Welke sleutel welke rol heeft in dit schema. */
 export function rollenVan(schema: unknown): Partial<Record<Rol, string>> {
-  const props = (schema as { properties?: Record<string, { "x-oa-rol"?: Rol }> } | null)?.properties ?? {};
+  const props = (schema as { properties?: Record<string, Record<string, unknown> & { "x-oa-rol"?: Rol }> } | null)?.properties ?? {};
   const uit: Partial<Record<Rol, string>> = {};
   const heeftRollen = Object.values(props).some((e) => e["x-oa-rol"]);
   for (const [sleutel, e] of Object.entries(props)) {
     const rol = heeftRollen ? e["x-oa-rol"] : ROL_VERSIE_1[sleutel];
     if (rol && !uit[rol]) uit[rol] = sleutel;
+  }
+  // Een rol die later in de catalogus kwam (zoals status), geldt ook voor een
+  // ouder schema: via het element uit het basismodel, als geen ander veld die rol heeft.
+  const basis = (schema as { "x-oa-model"?: ModelId } | null)?.["x-oa-model"];
+  const model = basis ? METADATAMODELLEN[basis] : undefined;
+  if (model && heeftRollen) {
+    for (const [sleutel, e] of Object.entries(props)) {
+      if (e["x-oa-rol"] || e["x-oa-eigen"]) continue;
+      const rol = model.velden.find((v) => v.sleutel === sleutel && v.element === e[`x-${basis}`])?.rol;
+      if (rol && !uit[rol]) uit[rol] = sleutel;
+    }
   }
   return uit;
 }

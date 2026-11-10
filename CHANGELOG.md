@@ -1,5 +1,14 @@
 # Wijzigingen
 
+## 0.7.0 — 2026-11-10
+
+**Versies en naam van het metadatamodel.**
+
+- `MetadatamodelConfig.naam`: de naam die de gemeente het model geeft (hoogstens 80 tekens). Leeg: de naam van het basismodel. Een andere naam is ook een nieuwe versie.
+- `modelnaam(config)` en `modelVan(objecttype)`: naam en versie zoals medewerkers die zien ("RGBZ Haarlem", 4). Een schema zonder keuze heet "Standaardmodel".
+- `Afdruk` heeft `objecttypeVersie` en `model`: het bestand weet met welk model het is vastgelegd.
+- Nieuwe rol `status` (RGBZ: status). Een ouder schema krijgt een rol die later in de catalogus kwam via het element uit het basismodel.
+
 ## 0.6.0 — 2026-11-09
 
 **Meting bij het anonimiseren** (`meting.ts`), voor de kwaliteit in het beheerportaal (Anonimiseren → Kwaliteit):

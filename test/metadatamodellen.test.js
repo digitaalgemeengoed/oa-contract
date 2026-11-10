@@ -10,6 +10,8 @@ import {
   configUitSchema,
   rollenVan,
   rolWaarden,
+  modelnaam,
+  modelVan,
 } from "../dist/index.js";
 
 test("elk model heeft een titel, en elk veld verwijst naar een bestaande waardelijst", () => {
@@ -93,4 +95,21 @@ test("fouten en waarschuwingen", () => {
 test("oude schema's (versie 1) krijgen hun rollen uit de vaste veldnamen", () => {
   assert.deepEqual(rollenVan(OBJECTTYPE_DOCUMENT_V1.schema).titel, "naam");
   assert.deepEqual(rolWaarden(OBJECTTYPE_DOCUMENT_V1.schema, { naam: "Brief", informatiecategorie: "adviezen", zaak: "" }), { titel: "Brief", informatiecategorie: "adviezen" });
+});
+
+test("de naam van een model: eigen naam, anders die van het basismodel; gaat mee in het schema", () => {
+  assert.equal(modelnaam(null), "Standaardmodel");
+  assert.equal(modelnaam({ basis: "rgbz" }), "RGBZ");
+  assert.equal(modelnaam({ basis: "rgbz", naam: "  " }), "RGBZ");
+  const c = { ...standaardConfig("rgbz"), naam: "RGBZ Haarlem" };
+  const schema = schemaUitConfig(c);
+  assert.deepEqual(modelVan({ versie: 3, schema }), { naam: "RGBZ Haarlem", versie: 3 });
+  assert.deepEqual(modelVan({ versie: 1, schema: { properties: {} } }), { naam: "Standaardmodel", versie: 1 });
+  assert.ok(controleerConfig({ ...c, naam: "x".repeat(81) }).some((p) => p.ernst === "fout" && /naam van het model/.test(p.melding)));
+  assert.equal(rollenVan(schema).status, "status", "de status van RGBZ heeft een rol");
+  // Een ouder schema, van voor de rol status: de rol volgt uit het element.
+  const oud = structuredClone(schema);
+  delete oud.properties.status["x-oa-rol"];
+  assert.equal(rollenVan(oud).status, "status");
+  assert.equal(rolWaarden(oud, { status: "definitief" }).status, "definitief");
 });
