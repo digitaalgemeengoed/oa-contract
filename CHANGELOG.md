@@ -1,5 +1,15 @@
 # Wijzigingen
 
+## 0.8.0 — 2026-11-10
+
+**Classificeren, bewaren en vergrendelen** (`classificatie.ts`).
+
+- De **Selectielijst gemeenten en intergemeentelijke organen 2020** als aparte ingang (`@digitaalgemeengoed/oa-contract/selectielijst`): 29 procestypen en 344 resultaten, met waardering, procestermijn en bewaartermijn. Gegenereerd door `scripts/selectielijst-2020.py` uit de gegevens van VNG-Realisatie/VNG-referentielijsten (EUPL). De lijst zit niet in het paneel; het paneel haalt op wat het nodig heeft.
+- `ClassificatiemodelConfig`: naam, selectielijst, uitgezette resultaten, gemotiveerde afwijkingen, eigen attributen, `vergrendelBij` (ten minste één status) en `termijnStartBij`. `controleerClassificatiemodel` toetst dat, ook tegen de statussen van het metadatamodel.
+- `bepaalBewaren`: waardering, bewaartermijn, brondatum en archiefactiedatum, met een uitleg in gewone taal. De termijn gaat in op de dag waarop het stuk de startstatus kreeg; bij een procestermijn "bestaansduur van het procesobject" op een datum die de medewerker invult. `telOp` en `duurInWoorden` voor ISO 8601-duren.
+- `Wijzigingsvoorstel`; `Actor.vrijgever`; het object heeft `status`, `statusdata`, `classificatie`, `bewaren`, `vergrendeld` en `voorstellen`. Nieuwe gebeurtenissen: classificatiemodel.gepubliceerd, classificatie.vastgelegd, voorstel.ingediend, voorstel.goedgekeurd, voorstel.afgewezen.
+- Nieuwe ingangen: `LEES.classificatie`, `LEES.classificatiemodel`, `LEES.voorstellen`, `LEES.voorstelWeergave`, `VASTLEG.classificatie`, `VASTLEG.voorstel`, `VASTLEG.beoordeling`.
+
 ## 0.7.0 — 2026-11-10
 
 **Versies en naam van het metadatamodel.**

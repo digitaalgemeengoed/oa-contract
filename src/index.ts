@@ -1,4 +1,5 @@
 import type { Rol } from "./metadatamodellen.js";
+import type { Bewaren, Classificatie } from "./classificatie.js";
 /**
  * Het contract van de Office Assistent.
  *
@@ -300,6 +301,33 @@ export interface Informatieobject {
   versleuteld?: boolean;
   /** Tijdstip waarop de sleutel is vernietigd; de inhoud is dan onleesbaar, de registratie blijft. */
   onleesbaarGemaakt?: string | null;
+  /** De status uit de metadata (rol status), als het model die heeft. */
+  status?: string | null;
+  /** Per status de dag waarop het stuk die status voor het eerst kreeg. */
+  statusdata?: Record<string, string>;
+  classificatie?: Classificatie | null;
+  /** Wat er met het stuk gebeurt en wanneer, uit de classificatie. */
+  bewaren?: Bewaren | null;
+  /** Vergrendeld: geen nieuwe versies meer, alleen wijzigingsvoorstellen. */
+  vergrendeld?: { status: string } | null;
+  /** Openstaande wijzigingsvoorstellen. */
+  voorstellen?: number;
+}
+
+/** Een wijziging aan een vergrendeld stuk, ter beoordeling door een vrijgever. */
+export interface Wijzigingsvoorstel {
+  id: string;
+  object: string;
+  /** Titel van het stuk (rol titel), om het in een lijst te herkennen. */
+  titel?: string;
+  /** De versie waarop het voorstel voortbouwt. */
+  bronversie: number;
+  reden: string;
+  door: { sub: string; naam?: string };
+  ingediend: string;
+  status: "open" | "goedgekeurd" | "afgewezen";
+  formaat: string;
+  beoordeling?: { door: { sub: string; naam?: string }; op: string; toelichting?: string; versie?: number };
 }
 
 export type ObjecttypeStatus = "concept" | "actief" | "uitgefaseerd";
@@ -337,6 +365,11 @@ export const GEBEURTENISTYPEN = [
   "objecttype.gepubliceerd",
   "delegatie.verleend",
   "delegatie.ingetrokken",
+  "classificatiemodel.gepubliceerd",
+  "classificatie.vastgelegd",
+  "voorstel.ingediend",
+  "voorstel.goedgekeurd",
+  "voorstel.afgewezen",
 ] as const;
 
 export type Gebeurtenistype = (typeof GEBEURTENISTYPEN)[number];
@@ -355,6 +388,11 @@ export interface Actor {
   namens?: string;
   /** Informatiebeheer (rol beheerder): mag beperkte versies lezen. */
   beheerder?: boolean;
+  /**
+   * Rol vrijgever: mag een vergrendeld stuk vrijgeven (de status wijzigen) en
+   * wijzigingsvoorstellen beoordelen, niet die van zichzelf.
+   */
+  vrijgever?: boolean;
 }
 
 export interface Gebeurtenis {
@@ -384,6 +422,14 @@ export const LEES = {
   object: (id: string) => `/api/lees/objecten/${encodeURIComponent(id)}`,
   objecttype: (naam: string, versie?: number) => `/api/lees/objecttypen/${encodeURIComponent(naam)}${versie ? `?versie=${versie}` : ""}`,
   objecttypen: "/api/lees/objecttypen",
+  /** Het classificatiemodel van de gemeente, met de resultaten uit de selectielijst die zij gebruikt. */
+  classificatie: "/api/lees/classificatie",
+  /** Alleen het model, zonder de selectielijst (licht, voor het opstarten). */
+  classificatiemodel: "/api/lees/classificatie?alleenModel=1",
+  /** Wijzigingsvoorstellen: open, of van één stuk (?object=…). */
+  voorstellen: (object?: string) => `/api/lees/voorstellen${object ? `?object=${encodeURIComponent(object)}` : ""}`,
+  /** Het voorgestelde document als html (om te beoordelen). */
+  voorstelWeergave: (id: string) => `/api/lees/voorstellen/${encodeURIComponent(id)}/weergave`,
   gebeurtenissen: (id: string) => `/api/lees/objecten/${encodeURIComponent(id)}/gebeurtenissen`,
   wieBenIk: "/api/lees/wie-ben-ik",
   /** De inhoud van een versie: het origineel. */
@@ -424,6 +470,12 @@ export const VASTLEG = {
   anonimisering: (id: string, nummer: number) => `/api/vastleg/objecten/${encodeURIComponent(id)}/versies/${nummer}/anonimisering`,
   /** Zakelijk of persoonlijk wijzigen (in het prototype: alleen persoonlijk naar zakelijk). */
   aard: (id: string) => `/api/vastleg/objecten/${encodeURIComponent(id)}/aard`,
+  /** De classificatie van een stuk vastleggen (klasse uit de selectielijst en eigen attributen). */
+  classificatie: (id: string) => `/api/vastleg/objecten/${encodeURIComponent(id)}/classificatie`,
+  /** Een wijzigingsvoorstel indienen voor een vergrendeld stuk. */
+  voorstel: (id: string) => `/api/vastleg/objecten/${encodeURIComponent(id)}/voorstellen`,
+  /** Een voorstel goedkeuren (wordt een nieuwe versie) of afwijzen; alleen een vrijgever, niet de indiener. */
+  beoordeling: (voorstel: string) => `/api/vastleg/voorstellen/${encodeURIComponent(voorstel)}/beoordeling`,
 } as const;
 
 // ---------------------------------------------------------------------------
@@ -707,4 +759,5 @@ export interface Fout {
 
 export * from "./schemas.js";
 export * from "./metadatamodellen.js";
+export * from "./classificatie.js";
 export * from "./meting.js";
