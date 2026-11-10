@@ -209,7 +209,18 @@ export interface VeldKeuze {
   waardelijst?: string;
   /** Alleen bij een eigen veld (geen element van het model). */
   eigen?: { type: VeldType; maxLengte?: number; opties?: string[]; rol?: Rol };
+  /**
+   * Alleen bij de Woo-informatiecategorie: ook de keuze "geen categorie"
+   * aanbieden. Niet elk stuk valt in een categorie van artikel 3.3 (een
+   * gespreksverslag met een inwoner bijvoorbeeld); zo is ook dat een
+   * vastgelegde keuze, en niet een vergeten veld.
+   */
+  geenCategorie?: boolean;
 }
+
+/** De waarde voor een stuk dat in geen informatiecategorie van artikel 3.3 Woo valt. */
+export const GEEN_WOO_CATEGORIE = "geen categorie (niet actief openbaar)";
+const GEEN_UITLEG = ` Valt het stuk in geen van deze categorieën, zoals een gespreksverslag met een inwoner, kies dan "${GEEN_WOO_CATEGORIE}". Het blijft wel opvraagbaar met een Woo-verzoek.`;
 
 export interface MetadatamodelConfig {
   basis: ModelId;
@@ -226,7 +237,7 @@ export interface MetadatamodelConfig {
 export function standaardConfig(basis: ModelId): MetadatamodelConfig {
   return {
     basis,
-    velden: METADATAMODELLEN[basis].velden.map((v) => ({ sleutel: v.sleutel, aan: !!v.aan, verplicht: !!v.verplicht })),
+    velden: METADATAMODELLEN[basis].velden.map((v) => ({ sleutel: v.sleutel, aan: !!v.aan, verplicht: !!v.verplicht, ...(v.rol === "informatiecategorie" ? { geenCategorie: true } : {}) })),
   };
 }
 
@@ -257,6 +268,9 @@ export function controleerConfig(c: MetadatamodelConfig): ConfigProbleem[] {
       if (k.eigen.type === "keuze" && !(k.eigen.opties?.length || k.waardelijst)) p.push({ sleutel: k.sleutel, ernst: "fout", melding: `Het keuzeveld "${k.label ?? k.sleutel}" heeft geen opties.` });
     }
     const type = k.eigen?.type ?? cat?.type;
+    if (k.geenCategorie && (k.eigen?.rol ?? cat?.rol) !== "informatiecategorie") {
+      p.push({ sleutel: k.sleutel, ernst: "fout", melding: `"Geen categorie" kan alleen bij de Woo-informatiecategorie.` });
+    }
     if (k.waardelijst && !WAARDELIJSTEN[k.waardelijst]) p.push({ sleutel: k.sleutel, ernst: "fout", melding: `Onbekende waardelijst: ${k.waardelijst}` });
     if (k.waardelijst && type !== "keuze") p.push({ sleutel: k.sleutel, ernst: "fout", melding: `Alleen een keuzeveld kan een waardelijst hebben.` });
     if (k.verplicht && !k.aan) p.push({ sleutel: k.sleutel, ernst: "fout", melding: `"${k.label ?? cat?.label ?? k.sleutel}" is verplicht maar staat uit.` });
@@ -271,6 +285,10 @@ export function controleerConfig(c: MetadatamodelConfig): ConfigProbleem[] {
   if (!titel) p.push({ ernst: "fout", melding: "Er moet een veld voor de titel (naam) van het stuk aan staan." });
   else if (!titel.verplicht) p.push({ sleutel: titel.sleutel, ernst: "waarschuwing", melding: "De titel is niet verplicht. Stukken zonder naam zijn slecht te vinden." });
   if (!rollen.has("informatiecategorie")) p.push({ ernst: "waarschuwing", melding: "Er staat geen Woo-informatiecategorie aan. Die is nodig om stukken actief openbaar te maken." });
+  const woo = c.velden.find((k) => k.aan && (k.eigen?.rol ?? model.velden.find((v) => v.sleutel === k.sleutel)?.rol) === "informatiecategorie");
+  if (woo?.verplicht && !woo.geenCategorie) {
+    p.push({ sleutel: woo.sleutel, ernst: "waarschuwing", melding: `De Woo-categorie is verplicht, maar "geen categorie" staat uit. Een stuk dat in geen categorie van artikel 3.3 valt (zoals een gespreksverslag met een inwoner), krijgt dan een categorie die niet klopt.` });
+  }
   if (!rollen.has("vertrouwelijkheid")) p.push({ ernst: "waarschuwing", melding: "Er staat geen veld voor vertrouwelijkheid aan." });
   if (!c.velden.some((k) => k.aan)) p.push({ ernst: "fout", melding: "Er staat geen enkel veld aan." });
   return p;
@@ -300,14 +318,17 @@ export function actieveVelden(c: MetadatamodelConfig): SchemaVeld[] {
       const cat = model.velden.find((v) => v.sleutel === k.sleutel);
       const type = k.eigen?.type ?? cat?.type ?? "tekst";
       const lijst = k.waardelijst ?? cat?.waardelijst;
+      const geen = !!k.geenCategorie && type === "keuze";
+      const opties = type === "keuze" ? (lijst ? WAARDELIJSTEN[lijst]?.waarden : k.eigen?.opties) : undefined;
+      const beschrijving = (k.beschrijving?.trim() || cat?.beschrijving) ?? undefined;
       return {
         sleutel: k.sleutel,
         element: cat?.element ?? "eigen veld",
         label: k.label?.trim() || cat?.label || k.sleutel,
-        beschrijving: (k.beschrijving?.trim() || cat?.beschrijving) ?? undefined,
+        beschrijving: geen ? `${beschrijving ?? ""}${GEEN_UITLEG}`.trim() : beschrijving,
         type,
         rol: k.eigen?.rol ?? cat?.rol,
-        opties: type === "keuze" ? (lijst ? WAARDELIJSTEN[lijst]?.waarden : k.eigen?.opties) : undefined,
+        opties: opties && geen ? [...opties, GEEN_WOO_CATEGORIE] : opties,
         maxLengte: k.eigen?.maxLengte ?? cat?.maxLengte,
         standaard: cat?.standaard,
         verplicht: k.verplicht,

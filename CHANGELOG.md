@@ -1,5 +1,11 @@
 # Wijzigingen
 
+## 0.8.1 — 2026-11-10
+
+**Woo: "geen categorie" als keuze.** Niet elk stuk valt in een informatiecategorie van artikel 3.3 Woo (een gespreksverslag met een inwoner bijvoorbeeld); het valt wel onder de Woo en blijft opvraagbaar.
+- `VeldKeuze.geenCategorie`: bij het veld met de rol informatiecategorie komt de waarde `GEEN_WOO_CATEGORIE` ("geen categorie (niet actief openbaar)") in de keuzelijst, met uitleg in de hulptekst. Zo is ook dat een vastgelegde keuze in plaats van een vergeten veld. De lijst van TOOI zelf blijft ongewijzigd.
+- Nieuwe modellen (`standaardConfig`) bieden het aan. `controleerConfig` waarschuwt als de categorie verplicht is zonder deze keuze, en geeft een fout als de keuze bij een ander veld staat.
+
 ## 0.8.0 — 2026-11-10
 
 **Classificeren, bewaren en vergrendelen** (`classificatie.ts`).

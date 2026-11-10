@@ -12,6 +12,7 @@ import {
   rolWaarden,
   modelnaam,
   modelVan,
+  GEEN_WOO_CATEGORIE,
 } from "../dist/index.js";
 
 test("elk model heeft een titel, en elk veld verwijst naar een bestaande waardelijst", () => {
@@ -112,4 +113,17 @@ test("de naam van een model: eigen naam, anders die van het basismodel; gaat mee
   delete oud.properties.status["x-oa-rol"];
   assert.equal(rollenVan(oud).status, "status");
   assert.equal(rolWaarden(oud, { status: "definitief" }).status, "definitief");
+});
+
+test("Woo: ook \"geen categorie\" kan een keuze zijn, alleen bij de informatiecategorie", () => {
+  const c = standaardConfig("rgbz");
+  assert.equal(c.velden.find((v) => v.sleutel === "informatiecategorie").geenCategorie, true, "nieuwe modellen bieden het aan");
+  const s = schemaUitConfig(c);
+  assert.ok(s.properties.informatiecategorie.enum.includes(GEEN_WOO_CATEGORIE));
+  assert.ok(s.properties.informatiecategorie.enum.includes("beschikkingen"));
+  assert.match(s.properties.informatiecategorie.description, /gespreksverslag met een inwoner/);
+  const zonder = { ...c, velden: c.velden.map((v) => (v.sleutel === "informatiecategorie" ? { ...v, geenCategorie: false } : v)) };
+  assert.equal(schemaUitConfig(zonder).properties.informatiecategorie.enum.includes(GEEN_WOO_CATEGORIE), false);
+  const fout = { ...c, velden: c.velden.map((v) => (v.sleutel === "titel" ? { ...v, geenCategorie: true } : v)) };
+  assert.ok(controleerConfig(fout).some((p) => p.ernst === "fout" && /Geen categorie/.test(p.melding)));
 });
